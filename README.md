@@ -1,2 +1,2 @@
-# go-data
-Data structs: Map &amp; List
+# go-queue
+Job/Worker + Queue (Buffered Channel)
