@@ -1,7 +1,7 @@
 package queue
 
 type JobInterface interface {
-	Init()
+	Initialize()
 	Execute()
 	Wait()
 	Done()

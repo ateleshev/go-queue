@@ -12,8 +12,8 @@ type Job struct {
 	done chan bool
 }
 
-func (this *Job) Init() { // {{{
-	// log.Printf("[Job] Init\n")
+func (this *Job) Initialize() { // {{{
+	// log.Printf("[Job] Initialize\n")
 	this.done = make(chan bool)
 } // }}}
 
