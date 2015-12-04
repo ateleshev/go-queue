@@ -93,7 +93,15 @@ func (this *Server) Run() { // {{{
 	go this.serve()
 } // }}}
 
+func (this *Server) close() { // {{{
+	// Close channels
+	close(this.WorkerQueue)
+	close(this.JobQueue)
+} // }}}
+
 func (this *Server) Close() { // {{{
+	defer this.close()
+	// Stop workers
 	for id, worker := range this.workers {
 		worker.Stop()
 		delete(this.workers, id)

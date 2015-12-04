@@ -57,7 +57,12 @@ func (this *Worker) Run() { // {{{
 	}
 } // }}}
 
+func (this *Worker) close() { // {{{
+	close(this.JobQueue)
+} // }}}
+
 func (this *Worker) Close() { // {{{
+	defer this.close()
 	this.shutdown <- true
 } // }}}
 
