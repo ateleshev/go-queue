@@ -1,10 +1,10 @@
 package queue
 
-//import (
-//	"log"
-//)
+import (
+	"log"
+)
 
-func NewWorker(name string, id int, workerQueue WorkerQueue) *Worker {
+func NewWorker(name string, id int, workerQueue WorkerQueue, logger *log.Logger) *Worker {
 	return &Worker{
 		// == Protected ==
 		id:       id,
@@ -13,6 +13,9 @@ func NewWorker(name string, id int, workerQueue WorkerQueue) *Worker {
 		// == Public ==
 		JobQueue:    make(JobQueue),
 		WorkerQueue: workerQueue,
+
+		// Logging
+		Logger: logger,
 	}
 }
 
@@ -24,6 +27,7 @@ type Worker struct {
 	shutdown    chan bool
 	JobQueue    JobQueue
 	WorkerQueue WorkerQueue
+	Logger      *log.Logger
 }
 
 func (this *Worker) Id() int { // {{{
