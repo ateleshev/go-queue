@@ -2,7 +2,7 @@ package queue
 
 type JobInterface interface {
 	Initialize()
-	Execute()
+	Execute(interface{})
 	Wait()
 	Done()
 	Completed() <-chan bool

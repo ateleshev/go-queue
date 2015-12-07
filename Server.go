@@ -14,7 +14,7 @@ var (
 func NewServer(name string, depthJobsQueue int, depthWorkersQueue int) *Server { // {{{
 	return &Server{
 		name:     name,
-		workers:  make(map[int]*Worker, depthWorkersQueue),
+		workers:  make(map[int]WorkerInterface, depthWorkersQueue),
 		shutdown: make(chan bool),
 
 		// == Depth ==
@@ -34,8 +34,9 @@ func NewServer(name string, depthJobsQueue int, depthWorkersQueue int) *Server {
 type Server struct {
 	name string
 
-	workers  map[int]*Worker
-	shutdown chan bool
+	workers       map[int]WorkerInterface
+	workerFactory WorkerFactoryInterface
+	shutdown      chan bool
 
 	// [Depth]
 	DepthJobsQueue    int // depth of jobs queue
@@ -59,7 +60,7 @@ func (this *Server) perform(job JobInterface) { // {{{
 	worker := <-this.WorkerQueue
 	worker <- job
 
-	go this.log("Execute job\n")
+	// 	go this.log("Execute job\n")
 } // }}}
 
 func (this *Server) serve() { // {{{
@@ -79,13 +80,26 @@ func (this *Server) Name() string { // {{{
 	return this.name
 } // }}}
 
+func (this *Server) SetWorkerFactory(workerFactory WorkerFactoryInterface) { // {{{
+	this.workerFactory = workerFactory
+} // }}}
+
+func (this *Server) WorkerFactory() WorkerFactoryInterface { // {{{
+	if this.workerFactory == nil {
+		this.workerFactory = NewWorkerFactory(this.Name(), this.WorkerQueue, this.Logger)
+	}
+
+	return this.workerFactory
+} // }}}
+
 func (this *Server) Dispatch(job JobInterface) { // {{{
 	this.JobQueue <- job
 } // }}}
 
 func (this *Server) Run() { // {{{
 	for i := 0; i < this.DepthWorkersQueue; i++ {
-		worker := NewWorker(this.Name(), i+1, this.WorkerQueue, this.Logger)
+		// worker := NewWorker(this.Name(), i+1, this.WorkerQueue, this.Logger)
+		worker := this.WorkerFactory().Create()
 		worker.Start()
 		this.workers[worker.Id()] = worker
 	}

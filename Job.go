@@ -17,8 +17,9 @@ func (this *Job) Initialize() { // {{{
 	this.done = make(chan bool)
 } // }}}
 
-//func (this *Job) Execute() { // {{{
-//	log.Printf("[Job] Execute\n")
+//func (this *Job) Execute(w interface{}) { // {{{
+//  worker := w.(*Worker)
+//	log.Printf("[Job:%s#%d] Execute\n", worker.Name(), worker.Id())
 //} // }}}
 
 func (this *Job) Wait() { // {{{

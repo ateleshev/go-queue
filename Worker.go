@@ -4,31 +4,32 @@ import (
 	"log"
 )
 
-func NewWorker(name string, id int, workerQueue WorkerQueue, logger *log.Logger) *Worker {
-	return &Worker{
-		// == Protected ==
-		id:       id,
-		name:     name,
-		shutdown: make(chan bool),
-		// == Public ==
-		JobQueue:    make(JobQueue),
-		WorkerQueue: workerQueue,
+func NewWorker(name string, id int, workerQueue WorkerQueue, logger *log.Logger) *Worker { // {{{
+	worker := &Worker{}
+	worker.Initialize(name, id, worker, workerQueue, logger)
 
-		// Logging
-		Logger: logger,
-	}
-}
+	return worker
+} // }}}
 
 type Worker struct {
-	WorkerInterface
-
 	id          int
 	name        string
+	child       interface{}
 	shutdown    chan bool
-	JobQueue    JobQueue
-	WorkerQueue WorkerQueue
-	Logger      *log.Logger
+	jobQueue    JobQueue
+	workerQueue WorkerQueue
+	logger      *log.Logger
 }
+
+func (this *Worker) Initialize(name string, id int, child interface{}, workerQueue WorkerQueue, logger *log.Logger) { // {{{
+	this.id = id
+	this.name = name
+	this.child = child
+	this.shutdown = make(chan bool)
+	this.jobQueue = make(JobQueue)
+	this.workerQueue = workerQueue
+	this.logger = logger
+} // }}}
 
 func (this *Worker) Id() int { // {{{
 	return this.id
@@ -42,12 +43,12 @@ func (this *Worker) Run() { // {{{
 	// log.Printf("[Worker:%s#%d] Run\n", this.Name(), this.Id())
 	for {
 		// Add ourselves into the worker queue.
-		this.WorkerQueue <- this.JobQueue
+		this.workerQueue <- this.jobQueue
 
 		select {
-		case job := <-this.JobQueue:
+		case job := <-this.jobQueue:
 			// log.Printf("[Worker:%s#%d] Execute Job\n", this.Name(), this.Id())
-			job.Execute()
+			job.Execute(this.child)
 			job.Done()
 			break
 		case <-this.shutdown:
@@ -58,7 +59,7 @@ func (this *Worker) Run() { // {{{
 } // }}}
 
 func (this *Worker) close() { // {{{
-	close(this.JobQueue)
+	close(this.jobQueue)
 } // }}}
 
 func (this *Worker) Close() { // {{{
