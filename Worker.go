@@ -14,17 +14,17 @@ func NewWorker(name string, id int, workerQueue WorkerQueue, logger *log.Logger)
 type Worker struct {
 	id          int
 	name        string
-	child       interface{}
+	instance    interface{}
 	shutdown    chan bool
 	jobQueue    JobQueue
 	workerQueue WorkerQueue
 	logger      *log.Logger
 }
 
-func (this *Worker) Initialize(name string, id int, child interface{}, workerQueue WorkerQueue, logger *log.Logger) { // {{{
+func (this *Worker) Initialize(name string, id int, instance interface{}, workerQueue WorkerQueue, logger *log.Logger) { // {{{
 	this.id = id
 	this.name = name
-	this.child = child
+	this.instance = instance
 	this.shutdown = make(chan bool)
 	this.jobQueue = make(JobQueue)
 	this.workerQueue = workerQueue
@@ -48,7 +48,7 @@ func (this *Worker) Run() { // {{{
 		select {
 		case job := <-this.jobQueue:
 			// log.Printf("[Worker:%s#%d] Execute Job\n", this.Name(), this.Id())
-			job.Execute(this.child)
+			job.Execute(this.instance)
 			job.Done()
 			break
 		case <-this.shutdown:
