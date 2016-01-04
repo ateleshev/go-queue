@@ -1,42 +1,50 @@
 package queue
 
 import (
-	"log"
+	"fmt"
 )
 
-func NewWorker(name string, id int, workerQueue WorkerQueue, logger *log.Logger) *Worker { // {{{
+func NewWorker(name string, poolId int, id int, workerQueue WorkerQueue) *Worker { // {{{
 	worker := &Worker{}
-	worker.Initialize(name, id, worker, workerQueue, logger)
+	worker.Initialize(name, poolId, id, worker, workerQueue)
 
 	return worker
 } // }}}
 
 type Worker struct {
 	id          int
+	poolId      int
 	name        string
 	instance    interface{}
 	shutdown    chan bool
 	jobQueue    JobQueue
 	workerQueue WorkerQueue
-	logger      *log.Logger
 }
 
-func (this *Worker) Initialize(name string, id int, instance interface{}, workerQueue WorkerQueue, logger *log.Logger) { // {{{
+func (this *Worker) Initialize(name string, poolId int, id int, instance interface{}, workerQueue WorkerQueue) { // {{{
 	this.id = id
+	this.poolId = poolId
 	this.name = name
 	this.instance = instance
 	this.shutdown = make(chan bool)
 	this.jobQueue = make(JobQueue)
 	this.workerQueue = workerQueue
-	this.logger = logger
 } // }}}
 
 func (this *Worker) Id() int { // {{{
 	return this.id
 } // }}}
 
+func (this *Worker) PoolId() int { // {{{
+	return this.poolId
+} // }}}
+
 func (this *Worker) Name() string { // {{{
 	return this.name
+} // }}}
+
+func (this *Worker) Info() string { // {{{
+	return fmt.Sprintf("%s:%d#%d", this.name, this.poolId, this.id)
 } // }}}
 
 func (this *Worker) Run() { // {{{
@@ -52,6 +60,7 @@ func (this *Worker) Run() { // {{{
 			job.Done()
 			break
 		case <-this.shutdown:
+			defer this.close()
 			// log.Printf("[Worker:%s#%d] Shutdown\n", this.Name(), this.Id())
 			return
 		}
@@ -63,7 +72,6 @@ func (this *Worker) close() { // {{{
 } // }}}
 
 func (this *Worker) Close() { // {{{
-	defer this.close()
 	this.shutdown <- true
 } // }}}
 

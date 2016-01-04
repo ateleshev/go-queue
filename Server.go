@@ -1,49 +1,30 @@
 package queue
 
 import (
-	"fmt"
 	"log"
-	"os"
 )
 
-var (
-	ServerLoggerPrefixFormat = "[QS:%s] "
-	ServerLoggerFlags        = log.Ldate | log.Ltime // log.Ldate | log.Ltime | log.Lshortfile // log.Ldate | log.Ltime | log.Llongfile
-)
+// poolSize = 30 (Max duration)
+// queueSize = 1000 (Max hotels per city)
 
-func NewServer(name string, depthJobsQueue int, depthWorkersQueue int) *Server { // {{{
+func NewServer(name string, poolSize, queueSize int) *Server { // {{{
+	size := poolSize * queueSize
 	return &Server{
-		name:     name,
-		workers:  make(map[int]WorkerInterface, depthWorkersQueue),
+		size:     size,
+		pool:     NewPool(name, poolSize, queueSize),
+		jobQueue: make(JobQueue, size),
 		shutdown: make(chan bool),
 
-		// == Depth ==
-		DepthJobsQueue:    depthJobsQueue,
-		DepthWorkersQueue: depthWorkersQueue,
-
-		// == Queue ==
-		JobQueue:    make(JobQueue, depthJobsQueue),
-		WorkerQueue: make(WorkerQueue, depthWorkersQueue),
-
-		Logger:    log.New(os.Stderr, fmt.Sprintf(ServerLoggerPrefixFormat, name), ServerLoggerFlags),
 		Logging:   true,
 		Debugging: true,
 	}
 } // }}}
 
 type Server struct {
-	name string
-
-	workers       map[int]WorkerInterface
-	workerFactory WorkerFactoryInterface
-	shutdown      chan bool
-
-	// [Depth]
-	DepthJobsQueue    int // depth of jobs queue
-	DepthWorkersQueue int // depth of workers queue
-	// [Queue]
-	JobQueue    JobQueue
-	WorkerQueue WorkerQueue
+	size     int // depth of JobQueue
+	pool     *Pool
+	jobQueue JobQueue
+	shutdown chan bool
 
 	Logger    *log.Logger
 	Logging   bool
@@ -51,75 +32,55 @@ type Server struct {
 }
 
 func (this *Server) log(format string, v ...interface{}) { // {{{
-	if this.Logging {
+	if this.Logging && this.Logger != nil {
 		this.Logger.Printf(format, v...)
 	}
 } // }}}
 
-func (this *Server) perform(job JobInterface) { // {{{
-	worker := <-this.WorkerQueue
-	worker <- job
-
-	// 	go this.log("Execute job\n")
+func (this *Server) Name() string { // {{{
+	return this.pool.Name()
 } // }}}
 
-func (this *Server) serve() { // {{{
+func (this *Server) Info() string { // {{{
+	return this.pool.Info()
+} // }}}
+
+func (this *Server) SetWorkerFactory(workerFactory WorkerFactoryInterface) { // {{{
+	this.pool.SetFactory(workerFactory)
+} // }}}
+
+func (this *Server) Dispatch(job JobInterface) { // {{{
+	this.jobQueue <- job
+} // }}}
+
+func (this *Server) Serve() { // {{{
 	for {
 		select {
-		case job := <-this.JobQueue:
-			go this.perform(job)
+		case job := <-this.jobQueue:
+			go this.pool.Perform(job)
+			//go this.log("[Server] Perform")
 		case <-this.shutdown:
-			defer this.Close()
-			go this.log("Shutdown\n")
+			defer this.close()
+			//go this.log("[Server] Shutdown")
 			return
 		}
 	}
 } // }}}
 
-func (this *Server) Name() string { // {{{
-	return this.name
-} // }}}
-
-func (this *Server) SetWorkerFactory(workerFactory WorkerFactoryInterface) { // {{{
-	this.workerFactory = workerFactory
-} // }}}
-
-func (this *Server) WorkerFactory() WorkerFactoryInterface { // {{{
-	if this.workerFactory == nil {
-		this.workerFactory = NewWorkerFactory(this.Name(), this.WorkerQueue, this.Logger)
-	}
-
-	return this.workerFactory
-} // }}}
-
-func (this *Server) Dispatch(job JobInterface) { // {{{
-	this.JobQueue <- job
-} // }}}
-
 func (this *Server) Run() { // {{{
-	for i := 0; i < this.DepthWorkersQueue; i++ {
-		// worker := NewWorker(this.Name(), i+1, this.WorkerQueue, this.Logger)
-		worker := this.WorkerFactory().Create()
-		worker.Start()
-		this.workers[worker.Id()] = worker
-	}
-	go this.log("Run %d workers\n", this.DepthWorkersQueue)
-	go this.serve()
+	this.pool.Run()
+
+	go this.Serve()
 } // }}}
 
+// Close channels
 func (this *Server) close() { // {{{
-	// Close channels
-	close(this.WorkerQueue)
-	close(this.JobQueue)
+	defer close(this.jobQueue)
+	this.pool.Close()
 } // }}}
 
 func (this *Server) Close() { // {{{
-	defer this.close()
-	// Stop workers
-	for id, worker := range this.workers {
-		worker.Stop()
-		delete(this.workers, id)
-	}
+	this.shutdown <- true
 } // }}}
 
 func (this *Server) Start() { // {{{

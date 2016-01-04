@@ -1,16 +1,10 @@
 package queue
 
-import (
-	"log"
-)
-
 type WorkerFactoryInterface interface {
-	Initialize(string, WorkerQueue, *log.Logger)
+	Initialize(string) // ({Name})
 
 	Name() string
 	NextId() int
-	WorkerQueue() WorkerQueue
-	Logger() *log.Logger
 
-	Create() WorkerInterface
+	Create(int, WorkerQueue) WorkerInterface // ({PoolId}, {WorkerQueue})
 }

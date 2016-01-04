@@ -1,13 +1,12 @@
 package queue
 
 import (
-	"log"
 	"sync"
 )
 
-func NewWorkerFactory(name string, workerQueue WorkerQueue, logger *log.Logger) *WorkerFactory { // {{{
+func NewWorkerFactory(name string) *WorkerFactory { // {{{
 	factory := &WorkerFactory{}
-	factory.Initialize(name, workerQueue, logger)
+	factory.Initialize(name)
 
 	return factory
 } // }}}
@@ -17,17 +16,13 @@ type WorkerFactory struct {
 
 	sync.Mutex
 
-	id          int
-	name        string
-	workerQueue WorkerQueue
-	logger      *log.Logger
+	id   int
+	name string
 }
 
-func (this *WorkerFactory) Initialize(name string, workerQueue WorkerQueue, logger *log.Logger) { // {{{
+func (this *WorkerFactory) Initialize(name string) { // {{{
 	this.id = 0
 	this.name = name
-	this.workerQueue = workerQueue
-	this.logger = logger
 } // }}}
 
 func (this *WorkerFactory) Name() string { // {{{
@@ -42,14 +37,6 @@ func (this *WorkerFactory) NextId() int { // {{{
 	return this.id
 } // }}}
 
-func (this *WorkerFactory) WorkerQueue() WorkerQueue { // {{{
-	return this.workerQueue
-} // }}}
-
-func (this *WorkerFactory) Logger() *log.Logger { // {{{
-	return this.logger
-} // }}}
-
-func (this *WorkerFactory) Create() WorkerInterface { // {{{
-	return NewWorker(this.Name(), this.NextId(), this.WorkerQueue(), this.Logger())
+func (this *WorkerFactory) Create(poolId int, workerQueue WorkerQueue) WorkerInterface { // {{{
+	return NewWorker(this.Name(), poolId, this.NextId(), workerQueue)
 } // }}}

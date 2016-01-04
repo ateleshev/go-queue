@@ -1,14 +1,12 @@
 package queue
 
-import (
-	"log"
-)
-
 type WorkerInterface interface {
-	Initialize(string, int, interface{}, WorkerQueue, *log.Logger)
+	Initialize(string, int, int, interface{}, WorkerQueue) // ({Name}, {PoolId}, {Id}, {WorkerInstance}, {WorkerQueue})
 
 	Id() int
+	PoolId() int
 	Name() string
+	Info() string
 
 	// In current goroutine
 	Run()
