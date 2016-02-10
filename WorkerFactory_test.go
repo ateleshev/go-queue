@@ -10,7 +10,7 @@ func TestWorkerFactory(t *testing.T) { // {{{
 	workerQueue := make(queue.WorkerQueue)
 	defer close(workerQueue)
 
-	f := queue.NewWorkerFactory("TestWorker")
+	f := queue.NewWorkerFactory("TestCacheAPISearch")
 	t.Logf("Created new WorkerFactory: '%s'", f.Name())
 
 	w1 := f.Create(1, workerQueue)

@@ -34,7 +34,7 @@ func finalizeTestServerJob(j *TestServerJob, i int, wg *sync.WaitGroup, t *testi
 } // }}}
 
 func TestServer(t *testing.T) { // {{{
-	s := queue.NewServer("TestWorker", PoolSize, QueueSize)
+	s := queue.NewServer("TestCacheAPISearch", PoolSize, QueueSize)
 	t.Logf("[Server] Created new: '%s'", s.Name())
 
 	s.Start()

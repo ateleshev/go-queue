@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -10,8 +11,9 @@ import (
 func NewServer(name string, poolSize, queueSize int) *Server { // {{{
 	size := poolSize * queueSize
 	return &Server{
+		name:     name,
 		size:     size,
-		pool:     NewPool(name, poolSize, queueSize),
+		balancer: NewBalancer(name, poolSize, queueSize),
 		jobQueue: make(JobQueue, size),
 		shutdown: make(chan bool),
 
@@ -21,8 +23,9 @@ func NewServer(name string, poolSize, queueSize int) *Server { // {{{
 } // }}}
 
 type Server struct {
+	name     string
 	size     int // depth of JobQueue
-	pool     *Pool
+	balancer *Balancer
 	jobQueue JobQueue
 	shutdown chan bool
 
@@ -38,15 +41,15 @@ func (this *Server) log(format string, v ...interface{}) { // {{{
 } // }}}
 
 func (this *Server) Name() string { // {{{
-	return this.pool.Name()
+	return this.name
 } // }}}
 
 func (this *Server) Info() string { // {{{
-	return this.pool.Info()
+	return fmt.Sprintf("%sServer(%s)", this.Name(), this.balancer.Info())
 } // }}}
 
-func (this *Server) SetWorkerFactory(workerFactory WorkerFactoryInterface) { // {{{
-	this.pool.SetFactory(workerFactory)
+func (this *Server) SetWorkerFactory(f WorkerFactoryInterface) { // {{{
+	this.balancer.SetWorkerFactory(f)
 } // }}}
 
 func (this *Server) Dispatch(job JobInterface) { // {{{
@@ -57,7 +60,7 @@ func (this *Server) Serve() { // {{{
 	for {
 		select {
 		case job := <-this.jobQueue:
-			go this.pool.Perform(job)
+			go this.balancer.Dispatch(job)
 			//go this.log("[Server] Perform")
 		case <-this.shutdown:
 			defer this.close()
@@ -68,7 +71,7 @@ func (this *Server) Serve() { // {{{
 } // }}}
 
 func (this *Server) Run() { // {{{
-	this.pool.Run()
+	this.balancer.Run()
 
 	go this.Serve()
 } // }}}
@@ -76,7 +79,7 @@ func (this *Server) Run() { // {{{
 // Close channels
 func (this *Server) close() { // {{{
 	defer close(this.jobQueue)
-	this.pool.Close()
+	this.balancer.Close()
 } // }}}
 
 func (this *Server) Close() { // {{{

@@ -34,7 +34,7 @@ func finalizeTestPoolJob(j *TestPoolJob, i int, wg *sync.WaitGroup, t *testing.T
 } // }}}
 
 func TestPool(t *testing.T) { // {{{
-	p := queue.NewPool("TestWorker", PoolSize, QueueSize)
+	p := queue.NewPool("TestPool", 1, QueueSize)
 	t.Logf("[Pool] Created new: '%s'", p.Name())
 
 	p.Start()
@@ -51,7 +51,7 @@ func TestPool(t *testing.T) { // {{{
 		t.Logf("[TestPoolJob:%d] Created: '%s'", i, j.Message)
 
 		wg.Add(1)
-		p.Perform(j)
+		p.Dispatch(j)
 		go finalizeTestPoolJob(j, i, &wg, t)
 	}
 

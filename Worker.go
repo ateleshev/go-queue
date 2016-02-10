@@ -19,6 +19,7 @@ type Worker struct {
 	shutdown    chan bool
 	jobQueue    JobQueue
 	workerQueue WorkerQueue
+	pending     uint
 }
 
 func (this *Worker) Initialize(name string, poolId int, id int, instance interface{}, workerQueue WorkerQueue) { // {{{
@@ -44,7 +45,7 @@ func (this *Worker) Name() string { // {{{
 } // }}}
 
 func (this *Worker) Info() string { // {{{
-	return fmt.Sprintf("%s:%d#%d", this.name, this.poolId, this.id)
+	return fmt.Sprintf("%sWorker:%d#%d", this.name, this.poolId, this.id)
 } // }}}
 
 func (this *Worker) Run() { // {{{
@@ -55,9 +56,11 @@ func (this *Worker) Run() { // {{{
 
 		select {
 		case job := <-this.jobQueue:
+			this.pending++
 			// log.Printf("[Worker:%s#%d] Execute Job\n", this.Name(), this.Id())
 			job.Execute(this.instance)
 			job.Done()
+			this.pending--
 			break
 		case <-this.shutdown:
 			defer this.close()

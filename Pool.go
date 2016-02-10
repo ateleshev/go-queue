@@ -2,29 +2,37 @@ package queue
 
 import (
 	"fmt"
+	"sync"
 	//	"log"
 )
 
-func NewPool(name string, size, queueSize int) *Pool { // {{{
+// ==[ Pool ]==
+
+func NewPool(name string, id, size int) *Pool { // {{{
 	return &Pool{
-		name:      name,
-		size:      size,
-		queueSize: queueSize,
-		shutdown:  make(chan bool),
-		workers:   make(map[int]WorkerMap, size),
-		queue:     make(PoolQueue, size),
+		id:          id,
+		name:        name,
+		size:        size,
+		workers:     make([]WorkerInterface, 0),
+		workerQueue: make(WorkerQueue, size),
 	}
 } // }}}
 
 type Pool struct {
-	name      string
-	size      int
-	queueSize int
-	shutdown  chan bool
-	factory   WorkerFactoryInterface
-	workers   map[int]WorkerMap
-	queue     PoolQueue
+	id            int
+	name          string
+	size          int
+	pending       uint
+	workerFactory WorkerFactoryInterface
+	workers       []WorkerInterface
+	workerQueue   WorkerQueue
+
+	index int
 }
+
+func (this *Pool) Id() int { // {{{
+	return this.id
+} // }}}
 
 func (this *Pool) Name() string { // {{{
 	return this.name
@@ -34,58 +42,54 @@ func (this *Pool) Size() int { // {{{
 	return this.size
 } // }}}
 
+func (this *Pool) Pending() uint { // {{{
+	return this.pending
+} // }}}
+
 func (this *Pool) Info() string { // {{{
-	return fmt.Sprintf("%s:%d#%d", this.name, this.size, this.queueSize)
+	return fmt.Sprintf("%sPool:%d#%d", this.name, this.id, this.size)
 } // }}}
 
-func (this *Pool) SetFactory(factory WorkerFactoryInterface) { // {{{
-	this.factory = factory
+func (this *Pool) SetWorkerFactory(f WorkerFactoryInterface) { // {{{
+	this.workerFactory = f
 } // }}}
 
-func (this *Pool) Factory() WorkerFactoryInterface { // {{{
-	if this.factory == nil {
-		this.factory = NewWorkerFactory(this.Name())
+func (this *Pool) WorkerFactory() WorkerFactoryInterface { // {{{
+	if this.workerFactory == nil {
+		this.workerFactory = NewWorkerFactory(this.name)
 	}
 
-	return this.factory
+	return this.workerFactory
 } // }}}
 
-func (this *Pool) Perform(job JobInterface) { // {{{
-	workerQueue := <-this.queue //  |<-- 1. Select pool
-	worker := <-workerQueue     //  |    2. Get worker from pool
-	worker <- job               //  |    3. Start executing of job
-	this.queue <- workerQueue   //  |--> 4. Wait next job
+func (this *Pool) Dispatch(job JobInterface) { // {{{
+	this.pending++
+	worker := <-this.workerQueue
+	worker <- job
 } // }}}
 
 func (this *Pool) Run() { // {{{
-	for i := 0; i < this.Size(); i++ {
-		workerMap := make(WorkerMap, this.queueSize)
-		workerQueue := make(WorkerQueue, this.queueSize)
-		for n := 0; n < this.queueSize; n++ {
-			worker := this.Factory().Create(i+1, workerQueue)
-			worker.Start()
-			workerMap[worker.Id()] = worker
-		}
-
-		this.workers[i] = workerMap
-		this.queue <- workerQueue
+	for i := 1; i <= this.size; i++ {
+		worker := this.WorkerFactory().Create(this.id, this.workerQueue)
+		this.workers = append(this.workers, worker)
+		worker.Start()
 	}
 } // }}}
 
-// Close channels
 func (this *Pool) close() { // {{{
-	close(this.queue)
+	close(this.workerQueue)
+
+	if len(this.workers) > 0 {
+		this.workers = this.workers[:0]
+	}
 } // }}}
 
 func (this *Pool) Close() { // {{{
 	defer this.close()
 
 	// Stop workers
-	for i := 0; i < this.Size(); i++ {
-		for id, worker := range this.workers[i] {
-			worker.Stop()
-			delete(this.workers[i], id)
-		}
+	for i, _ := range this.workers {
+		this.workers[i].Close()
 	}
 } // }}}
 
@@ -95,4 +99,50 @@ func (this *Pool) Start() { // {{{
 
 func (this *Pool) Stop() { // {{{
 	go this.Close()
+} // }}}
+
+// ==[ Pools ]==
+
+type Pools struct {
+	sync.Mutex
+
+	data []*Pool
+}
+
+func (this *Pools) Len() int { // {{{
+	return len(this.data)
+} // }}}
+
+func (this *Pools) Less(i, j int) bool { // {{{
+	return this.data[i].Pending() < this.data[j].Pending()
+} // }}}
+
+func (this Pools) Swap(i, j int) { // {{{
+	defer this.Unlock()
+	this.Lock()
+
+	this.data[i], this.data[j] = this.data[j], this.data[i]
+} // }}}
+
+func (this *Pools) Push(x interface{}) { // {{{
+	defer this.Unlock()
+	this.Lock()
+
+	n := this.Len()
+	pool := x.(*Pool)
+	pool.index = n
+	this.data = append(this.data, pool)
+} // }}}
+
+func (this *Pools) Pop() interface{} { // {{{
+	defer this.Unlock()
+	this.Lock()
+
+	old := this.data
+	n := len(old)
+	pool := old[n-1]
+	pool.index = -1
+	this.data = old[0 : n-1]
+
+	return pool
 } // }}}
