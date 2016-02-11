@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"container/heap"
 	"fmt"
 	"log"
 	"sync"
@@ -53,32 +52,25 @@ func (this *Balancer) WorkerFactory() WorkerFactoryInterface { // {{{
 } // }}}
 
 func (this *Balancer) Dispatch(job JobInterface) { // {{{
-	defer this.Unlock()
-	this.Lock()
-
 	if this.pools.Len() > 0 {
-		pool := heap.Pop(this.pools).(*Pool)
-		pool.Dispatch(job)
-		heap.Push(this.pools, pool)
+		this.pools.Dispatch(job)
 	} else {
 		go log.Println("[Balancer:Error] Pools is empty")
 	}
 } // }}}
 
 func (this *Balancer) Run() { // {{{
-	heap.Init(this.pools)
-
 	for i := 1; i <= this.size; i++ {
 		pool := NewPool(this.name, i, this.queueSize)
 		pool.SetWorkerFactory(this.WorkerFactory().New())
-		heap.Push(this.pools, pool)
+		this.pools.Push(pool)
 		pool.Start()
 	}
 } // }}}
 
 func (this *Balancer) Close() { // {{{
 	for this.pools.Len() > 0 {
-		pool := heap.Pop(this.pools).(*Pool)
+		pool := this.pools.Pop()
 		pool.Close()
 	}
 } // }}}

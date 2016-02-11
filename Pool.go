@@ -2,7 +2,6 @@ package queue
 
 import (
 	"fmt"
-	"sync"
 	//	"log"
 )
 
@@ -99,50 +98,4 @@ func (this *Pool) Start() { // {{{
 
 func (this *Pool) Stop() { // {{{
 	go this.Close()
-} // }}}
-
-// ==[ Pools ]==
-
-type Pools struct {
-	sync.Mutex
-
-	data []*Pool
-}
-
-func (this *Pools) Len() int { // {{{
-	return len(this.data)
-} // }}}
-
-func (this *Pools) Less(i, j int) bool { // {{{
-	return this.data[i].Pending() < this.data[j].Pending()
-} // }}}
-
-func (this Pools) Swap(i, j int) { // {{{
-	defer this.Unlock()
-	this.Lock()
-
-	this.data[i], this.data[j] = this.data[j], this.data[i]
-} // }}}
-
-func (this *Pools) Push(x interface{}) { // {{{
-	defer this.Unlock()
-	this.Lock()
-
-	n := this.Len()
-	pool := x.(*Pool)
-	pool.index = n
-	this.data = append(this.data, pool)
-} // }}}
-
-func (this *Pools) Pop() interface{} { // {{{
-	defer this.Unlock()
-	this.Lock()
-
-	old := this.data
-	n := len(old)
-	pool := old[n-1]
-	pool.index = -1
-	this.data = old[0 : n-1]
-
-	return pool
 } // }}}
