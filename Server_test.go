@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ArtemTeleshev/go-queue"
+	"github.com/ateleshev/go-queue"
 )
 
 type TestServerJob struct {

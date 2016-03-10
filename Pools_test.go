@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ArtemTeleshev/go-queue"
+	"github.com/ateleshev/go-queue"
 )
 
 func TestPools(t *testing.T) { // {{{
