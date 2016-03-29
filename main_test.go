@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	PoolSize     = 30
-	QueueSize    = 500
-	JobsQuantity = 30000
+	PoolSize     = 20
+	QueueSize    = 300
+	JobsQuantity = 10000
 )
 
 func init() {

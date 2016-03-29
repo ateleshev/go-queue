@@ -60,7 +60,7 @@ func (this *Server) Serve() { // {{{
 	for {
 		select {
 		case job := <-this.jobQueue:
-			go this.balancer.Dispatch(job)
+			this.balancer.Dispatch(job)
 			//go this.log("[Server] Perform")
 		case <-this.shutdown:
 			defer this.close()
