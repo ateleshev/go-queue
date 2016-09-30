@@ -51,7 +51,7 @@ func (this *Pools) Pop() *Pool { // {{{
 
 func (this *Pools) Index() int { // {{{
 	defer func() {
-		if this.index < this.Last() {
+		if this.index < this.Len() {
 			this.index++
 		} else {
 			this.index = 0
